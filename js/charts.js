@@ -1,7 +1,7 @@
 /* Small dependency-free SVG chart helpers (line, bar, sparkline, task visuals). */
 IM.charts = (function () {
   const esc = s => IM.util.esc(s);
-  const COL = ['#2f6fed', '#0f9b8e', '#d97706', '#8b5cf6', '#e11d48'];
+  const COL = ['#e0246b', '#9b4dea', '#0f9b8e', '#d97706', '#2f6fed'];
   const DASH = ['', '6 3', '2 3', '8 3 2 3', '1 4'];
 
   function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
