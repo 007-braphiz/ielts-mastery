@@ -57,12 +57,12 @@
       }
     });
     // spaced repetition: the item itself, and every individual word that was missed or misspelled
-    if (!item.dynamic) IM.srs.record('dict:' + item.id, res.strictScore >= 90, { context: 'dictation-' + meta.mode, title: item.cat + ' ' + (item.text.length > 40 ? item.text.slice(0, 40) + '…' : item.text), level: item.level });
+    if (!item.dynamic) IM.srs.record('dict:' + item.id, (item.cat === 'S' ? res.perfect : res.strictScore >= 90), { context: 'dictation-' + meta.mode, title: item.cat + ' ' + (item.text.length > 40 ? item.text.slice(0, 40) + '…' : item.text), level: item.level });
     const seen = new Set();
     res.ops.forEach(o => {
       if (!o.ref || o.ref.key.length < 3 || seen.has(o.ref.key)) return;
       const bad = ['spelling', 'homophone', 'substituted', 'missing', 'order'].includes(o.type);
-      if (bad || (item.cat === 'A' || item.cat === 'D') && o.type === 'ok') { seen.add(o.ref.key); IM.srs.record('spell:' + o.ref.key, !bad, { context: 'dictation', title: o.ref.core }); }
+      if (bad || (item.cat === 'A' || item.cat === 'D' || item.cat === 'S') && o.type === 'ok') { seen.add(o.ref.key); IM.srs.record('spell:' + o.ref.key, !bad, { context: 'dictation', title: o.ref.core }); }
     });
     IM.analytics.recordArea('Spelling', res.counts.spelling + res.counts.homophone === 0 ? 1 : 0, 1);
     IM.analytics.recordArea('Listening comprehension', res.wordAccuracy >= 80 ? 1 : 0, 1);
@@ -140,7 +140,7 @@
     const store = IM.store;
     const S = () => store.state;
     let tab = params.tab || 'lab';
-    const cfg = { cat: params.cat && 'ABCDEFGH'.includes(params.cat) ? params.cat : 'E', level: params.level ? Number(params.level) : 'adaptive', n: 5, mode: 'learning' };
+    const cfg = { cat: params.cat && 'ABCDEFGHS'.includes(params.cat) ? params.cat : 'E', level: params.level ? Number(params.level) : 'adaptive', n: 5, mode: 'learning' };
     let run = null;
     let timerId = null;
     let lastPlayState = false;
@@ -310,8 +310,8 @@
       const dueN = IM.srs.due().filter(i => i.kind === 'spell' || i.kind === 'dict').length;
       const count = c => D().items.filter(i => i.cat === c).length;
       root.innerHTML = `<h1>Dictation Laboratory</h1>
-        <div class="tabs"><button class="tab ${tab === 'lab' ? 'active' : ''}" data-tab="lab">Practise</button><button class="tab ${tab === 'progress' ? 'active' : ''}" data-tab="progress">My progress</button></div>
-        ${tab === 'progress' ? progressHtml(ds) : `
+        <div class="tabs"><button class="tab ${tab === 'lab' ? 'active' : ''}" data-tab="lab">Practise</button><button class="tab ${tab === 'words100' ? 'active' : ''}" data-tab="words100">100 Words</button><button class="tab ${tab === 'progress' ? 'active' : ''}" data-tab="progress">My progress</button></div>
+        ${tab === 'words100' ? words100Html() : tab === 'progress' ? progressHtml(ds) : `
         <div class="card"><h2>1. Choose a category</h2>
           <div class="grid c2">${D().categories.map(c => `<label class="card" style="cursor:pointer;border:2px solid ${cfg.cat === c.id ? 'var(--primary)' : 'var(--border)'};display:block"><input type="radio" name="cat" value="${c.id}" ${cfg.cat === c.id ? 'checked' : ''} style="width:auto;min-height:0"> <b>${c.id}. ${esc(c.name)}</b><br><span class="small muted">${esc(c.blurb)} (${count(c.id)} items)</span></label>`).join('')}</div></div>
         <div class="card"><h2>2. Level, length and mode</h2>
@@ -325,6 +325,46 @@
           <div class="row"><button class="btn" data-act="start">▶ Start the exercise</button><button class="btn secondary" data-act="review" ${dueN ? '' : 'disabled'}>Review due spellings (${dueN})</button></div>
           ${IM.audio.hasSpeech ? '' : `<p class="note">${esc(IM.audio.unsupportedMessage)}</p>`}
           <p class="small muted">Voices are provided by your browser and operating system, so pronunciation and speed vary by device. Bundled recordings can be added per item through the <code>audio</code> field in <code>data/dictation.js</code>.</p></div>`}`;
+    }
+
+    /* ----- the 100-word study guide ----- */
+    const g100 = () => IM.data.spelling100.guide;
+    const rec100 = g => IM.srs.get('dict:' + g.id);
+    function words100Html() {
+      const list = g100();
+      const f = cfg.f100 || 'all', q = (cfg.q100 || '').toLowerCase();
+      const counts = { new: 0, learning: 0, reviewing: 0, mastered: 0 };
+      list.forEach(g => { counts[IM.srs.status(rec100(g))]++; });
+      const dueN = IM.srs.due('dict:S').length, weakN = IM.srs.weak('dict:S').length;
+      const shown = list.filter(g => {
+        const st = IM.srs.status(rec100(g));
+        const missed = rec100(g) && rec100(g).lapses >= 1;
+        return (f === 'all' || f === st || (f === 'weak' && missed)) && (!q || g.entry.toLowerCase().includes(q) || g.error.includes(q));
+      });
+      return `<div class="card"><h2>100 Commonly Misspelled Words</h2>
+        <p>Your study guide, built into the Dictation Laboratory. Each word is dictated inside a sentence: you hear it, type it, and the app shows the common error and the memory cue. A word counts as <b>mastered</b> only after you spell it exactly right on several different days and in both Learning and Exam modes, so one lucky answer never counts.</p>
+        ${IM.ui.bar(U.pct(counts.mastered, 100), 'Words mastered')}
+        <p><b>${counts.mastered}</b> of 100 mastered · ${counts.reviewing} reviewing · ${counts.learning} learning · ${counts.new} not started</p>
+        <div class="row"><button class="btn" data-w100="new">▶ Next 10 new words</button>
+        <button class="btn secondary" data-w100="due" ${dueN ? '' : 'disabled'}>Review due (${dueN})</button>
+        <button class="btn secondary" data-w100="weak" ${weakN ? '' : 'disabled'}>Weak words (${weakN})</button>
+        <button class="btn secondary" data-w100="test">Exam Simulation: 20 random words</button></div>
+        <p class="small muted">Spelling is exact here. Where US and UK spellings differ (jewelry/jewellery, judgment/judgement, license/licence, maneuver/manoeuvre, neighbor/neighbour), both are accepted. “Humourous” is not accepted: the standard spelling in both US and UK English is “humorous”.</p></div>
+        <div class="card"><div class="grid c3"><div><label class="field" for="f100">Show</label><select id="f100">${[['all', 'All 100'], ['new', 'Not started'], ['learning', 'Learning'], ['reviewing', 'Reviewing'], ['mastered', 'Mastered'], ['weak', 'Ever missed']].map(o => `<option value="${o[0]}" ${f === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>
+        <div><label class="field" for="q100">Search</label><input id="q100" type="search" value="${esc(cfg.q100 || '')}"></div></div>
+        <div class="table-wrap"><table class="t"><thead><tr><th>#</th><th>Correct spelling</th><th>Common error</th><th>Memory cue</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(g => { const r = rec100(g); const st = IM.srs.status(r); return `<tr><td>${g.n}</td><td><b>${esc(g.entry)}</b></td><td><span class="muted">${esc(g.error)}</span></td><td class="small">${esc(g.cue)}</td><td><span class="badge ${st === 'mastered' ? 'good' : st === 'new' ? '' : 'info'}">${st}</span>${r ? `<div class="small muted">${r.correct}/${r.attempts} right</div>` : ''}</td><td><button class="btn small ghost" data-say="${esc(g.entry)}" aria-label="Hear ${esc(g.entry)}">🔊</button></td></tr>`; }).join('')}</tbody></table></div></div>`;
+    }
+    function start100(kind) {
+      const all = g100().map(g => findItem(g.id));
+      let items = [];
+      if (kind === 'new') {
+        items = all.filter(i => !IM.srs.get('dict:' + i.id)).slice(0, 10);
+        if (items.length < 10) items = items.concat(all.filter(i => IM.srs.get('dict:' + i.id) && IM.srs.status(IM.srs.get('dict:' + i.id)) !== 'mastered').sort((a, b) => IM.srs.get('dict:' + a.id).box - IM.srs.get('dict:' + b.id).box).slice(0, 10 - items.length));
+      } else if (kind === 'due') items = IM.srs.due('dict:S').slice(0, 10).map(d => findItem(d.key.slice(5))).filter(Boolean);
+      else if (kind === 'weak') items = IM.srs.weak('dict:S').slice(0, 10).map(d => findItem(d.key.slice(5))).filter(Boolean);
+      else items = U.shuffle(all).slice(0, 20);
+      if (!items.length) { U.toast(kind === 'new' ? 'All 100 words are mastered. Well done!' : 'Nothing to practise in that group yet.', 'warn'); return; }
+      startRun(items, kind === 'test' ? 'exam' : 'learning', kind === 'test' ? '100 words: exam simulation' : '100 commonly misspelled words');
     }
 
     function progressHtml(ds) {
@@ -358,6 +398,8 @@
       if (say) { const st = S().settings; IM.audio.speak(say.dataset.say, { accent: st.accent, voiceURI: st.voiceURI, rate: 0.8 }).catch(() => {}); return; }
       const tb = e.target.closest('[data-tab]');
       if (tb) { tab = tb.dataset.tab; draw(); return; }
+      const w1 = e.target.closest('[data-w100]');
+      if (w1) { start100(w1.dataset.w100); return; }
       const sg = e.target.closest('[data-seg]');
       if (sg && run) { playSegment(Number(sg.dataset.seg)); return; }
       const a = e.target.closest('[data-act]'); if (!a) return;
@@ -380,8 +422,12 @@
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-say]')) { e.preventDefault(); e.target.click(); }
       if (e.key === 'Enter' && e.target.id === 'ans' && e.target.tagName === 'INPUT' && run && run.stage === 'listen') { e.preventDefault(); submit(false); }
     });
+    root.addEventListener('input', e => {
+      if (e.target.id === 'q100') { cfg.q100 = e.target.value; const pos = e.target.selectionStart; draw(); const el = U.$('#q100', root); if (el) { el.focus(); el.setSelectionRange(pos, pos); } }
+    });
     root.addEventListener('change', e => {
       if (e.target.name === 'cat') { cfg.cat = e.target.value; draw(); }
+      if (e.target.id === 'f100') { cfg.f100 = e.target.value; draw(); }
       if (e.target.id === 'lvl') { cfg.level = e.target.value === 'adaptive' ? 'adaptive' : Number(e.target.value); }
       if (e.target.id === 'len') cfg.n = Number(e.target.value);
       if (e.target.id === 'mode') { cfg.mode = e.target.value; draw(); }

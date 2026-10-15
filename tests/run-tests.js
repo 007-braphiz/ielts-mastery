@@ -1,4 +1,4 @@
-/* Developer test-suite. Not needed for deployment.
+﻿/* Developer test-suite. Not needed for deployment.
    Run with:  node tests/run-tests.js
    Loads the application's non-DOM modules into a sandbox and checks scoring, comparison and storage logic. */
 const fs = require('fs');
@@ -23,7 +23,7 @@ function load(rel) {
 }
 
 const files = [
-  'data/scoring.js', 'data/vocabulary.js', 'data/grammar.js', 'data/dictation.js', 'data/listening.js', 'data/reading.js', 'data/writing.js', 'data/speaking.js',
+  'data/scoring.js', 'data/vocabulary.js', 'data/grammar.js', 'data/dictation.js', 'data/spelling100.js', 'data/listening.js', 'data/reading.js', 'data/writing.js', 'data/speaking.js',
   'js/core.js', 'js/diff.js', 'js/srs.js', 'js/qengine.js', 'js/analytics.js', 'js/tutor.js'
 ];
 files.forEach(f => { if (fs.existsSync(path.join(root, f))) load(f); });
@@ -48,8 +48,23 @@ test('every vocabulary example contains its headword', () => {
 });
 test('dictation covers categories A-H and levels 1-6', () => {
   const items = IM.data.dictation.items;
-  eq([...new Set(items.map(i => i.cat))].sort(), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+  eq([...new Set(items.map(i => i.cat))].sort(), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'S']);
   eq([...new Set(items.map(i => i.level))].sort(), [1, 2, 3, 4, 5, 6]);
+});
+test('100-word study guide is fully integrated', () => {
+  const g = IM.data.spelling100.guide;
+  eq(g.length, 100);
+  g.forEach(x => { const it = IM.data.dictation.items.find(i => i.id === x.id); ok(it && it.cat === 'S', x.entry); });
+  g.filter(x => !/ /.test(x.entry) && x.entry !== 'principal').forEach(x => {
+    const it = IM.data.dictation.items.find(i => i.id === x.id);
+    ok(new RegExp('(^|[^a-z])' + x.entry, 'i').test(x.sentence), 'sentence lacks ' + x.entry);
+    eq(IM.diff.compare(it.text, x.entry, { item: it }).perfect, true, x.entry);
+    if (!it.accept.includes(x.error)) ok(!IM.diff.compare(it.text, x.error, { item: it }).perfect, 'common error accepted: ' + x.entry);
+  });
+  const jw = IM.data.dictation.items.find(i => i.text === 'jewelry');
+  ok(IM.diff.compare(jw.text, 'jewellery', { item: jw }).perfect, 'UK variant accepted');
+  const hu = IM.data.dictation.items.find(i => i.text === 'humorous');
+  ok(!IM.diff.compare(hu.text, 'humourous', { item: hu }).perfect, 'humourous must be rejected');
 });
 test('listening test has 4 sections and 40 uniquely numbered questions', () => {
   const t = IM.data.listening.tests[0];

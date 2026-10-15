@@ -1,4 +1,4 @@
-# IELTS Band 8 Mastery
+﻿# IELTS Band 8 Mastery
 
 A static, framework-free IELTS preparation and English-learning web application (HTML, CSS, vanilla JavaScript). No backend, build step, package manager or paid AI service. Progress is stored in the browser's LocalStorage.
 
@@ -8,7 +8,7 @@ Dashboard · Exam Simulator (Listening, Reading, Writing, Speaking) · Vocabular
 ## Project structure
 ```
 index.html  styles.css  app.js  netlify.toml  README.md
-data/    scoring.js vocabulary.js grammar.js dictation.js listening.js reading.js writing.js speaking.js
+data/    scoring.js vocabulary.js grammar.js dictation.js spelling100.js listening.js reading.js writing.js speaking.js
 js/      core.js audio.js diff.js srs.js qengine.js analytics.js tutor.js charts.js v-*.js (one per view)
 assets/  icons/icon.svg  audio/README.txt (how to add recordings)
 tests/   run-tests.js (developer checks; not needed for deployment)
@@ -30,7 +30,7 @@ node tests/run-tests.js         # optional logic tests
 Deployment has **not** been performed from this environment; verify your published URL yourself.
 
 ## Coverage (honest)
-- 72 vocabulary entries (12 per level), 19 grammar lessons, 102 dictation items, 1 full Listening test (4 sections, 40 questions), 1 Academic and 1 General Training Reading test (40 questions each), 13 Writing tasks with models, 8 Speaking Part 1 topics and 6 cue cards.
+- 72 vocabulary entries (12 per level), 19 grammar lessons, 202 dictation items (including the 100 Commonly Misspelled Words study guide, category S, with a dedicated 100 Words tab), 1 full Listening test (4 sections, 40 questions), 1 Academic and 1 General Training Reading test (40 questions each), 13 Writing tasks with models, 8 Speaking Part 1 topics and 6 cue cards.
 - Reading passages are shorter than real IELTS passages; the Listening audio is synthetic speech and shorter than a real recording. Some details in practice texts are illustrative. All content is original.
 - Band conversion tables are approximate and editable in `data/scoring.js`.
 
