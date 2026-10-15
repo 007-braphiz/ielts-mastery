@@ -29,6 +29,14 @@ node tests/run-tests.js         # optional logic tests
 
 Deployment has **not** been performed from this environment; verify your published URL yourself.
 
+## Optional AI question generator
+Off by default. In **Settings → AI question generator** you can add your own Claude API key to generate new Reading sets and vocabulary entries (menu: *AI Question Generator*).
+- The browser calls api.anthropic.com directly (no server of ours). Only the topic or level you type is sent, never your progress.
+- The key is kept in its own LocalStorage entry and is **not** in the exported backup. Do not enable it on a shared computer, and set a low spend limit on the key in the Anthropic console.
+- Generated items are checked by code (for example, quoted evidence must appear in the passage) and labelled AI-generated and unverified. They never change your estimated bands. AI vocabulary joins spaced repetition.
+- Each Generate click is one billed request. The model is chosen in Settings.
+- The request shape is covered by offline tests with a mocked API; it has not been run against the live API from this development environment, so test the connection in Settings first.
+
 ## Coverage (honest)
 - 72 vocabulary entries (12 per level), 19 grammar lessons, 202 dictation items (including the 100 Commonly Misspelled Words study guide, category S, with a dedicated 100 Words tab), 1 full Listening test (4 sections, 40 questions), 1 Academic and 1 General Training Reading test (40 questions each), 13 Writing tasks with models, 8 Speaking Part 1 topics and 6 cue cards.
 - Reading passages are shorter than real IELTS passages; the Listening audio is synthetic speech and shorter than a real recording. Some details in practice texts are illustrative. All content is original.

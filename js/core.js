@@ -76,7 +76,8 @@ IM.store = (function () {
         onboarded: false, testType: 'academic',
         targets: { overall: 8, listening: 8, reading: 8, writing: 8, speaking: 8 },
         dailyMinutes: 45, studyDays: [1, 2, 3, 4, 5, 6], examDate: '', accent: 'en-GB', voiceURI: '', speechRate: 1,
-        difficulties: [], theme: 'auto'
+        difficulties: [], theme: 'auto',
+        ai: { enabled: false, model: 'claude-opus-5-5' }
       },
       diagnostic: { done: false, skipped: false, takenAt: null, results: {}, baseline: {} },
       activity: [],
@@ -90,6 +91,7 @@ IM.store = (function () {
       speaking: { sessions: [] },
       plan: { completed: {}, reviews: [] },
       achievements: {},
+      ai: { sets: [], vocab: [] },
       inProgress: {}
     };
   }

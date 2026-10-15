@@ -12,6 +12,7 @@
     { id: 'english', label: 'English Proficiency Centre', icon: '🔤' },
     { id: 'writing', label: 'Writing Coach', icon: '✍️' },
     { id: 'speaking', label: 'Speaking Coach', icon: '🎤' },
+    { id: 'ai', label: 'AI Question Generator', icon: '✨' },
     { id: 'plan', label: 'Personalised Study Plan', icon: '🗓️' },
     { id: 'analytics', label: 'Progress Analytics', icon: '📈' },
     { id: 'settings', label: 'Settings and Data', icon: '⚙️' }
@@ -88,6 +89,7 @@
 
   function boot() {
     const res = IM.store.load();
+    IM.ai.mergeVocab();
     applyTheme();
     document.getElementById('nav-toggle').addEventListener('click', () => {
       const open = document.body.classList.toggle('nav-open');

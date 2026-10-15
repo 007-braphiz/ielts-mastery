@@ -106,6 +106,14 @@
         <div class="row"><button class="btn secondary" data-act="testvoice">▶ Test the voice</button><span class="small muted">Synthetic voices differ by browser and device; they are practice audio, not official IELTS recordings.</span></div>
       </div>
 
+      <div class="card"><h2>AI question generator (optional)</h2>
+        <p>Lets the app create new Reading sets and vocabulary entries with Claude. It is <b>off</b> unless you enable it and add your own API key.</p>
+        <div class="grid c2"><div class="formrow"><label class="field" for="aikey">Claude API key</label><input id="aikey" type="password" autocomplete="off" placeholder="${IM.ai.getKey() ? 'A key is saved (paste a new one to replace it)' : 'sk-ant-…'}"></div>
+        <div class="formrow"><label class="field" for="aimodel">Model</label><select id="aimodel">${IM.ai.MODELS.map(m => `<option value="${m[0]}" ${(s.ai || {}).model === m[0] ? 'selected' : ''}>${esc(m[1])}</option>`).join('')}</select></div></div>
+        <div class="checks"><label><input type="checkbox" id="aion" ${(s.ai || {}).enabled ? 'checked' : ''}> Enable the AI question generator</label></div>
+        <div class="row"><button class="btn" data-act="aisave">Save AI settings</button><button class="btn secondary" data-act="aitest">Test connection</button><button class="btn ghost" data-act="aiclear">Remove saved key</button></div><div id="aimsg" class="small" aria-live="polite" style="margin-top:8px"></div>
+        <details><summary>Privacy, cost and safety</summary><ul class="small"><li>Your browser sends requests <b>directly</b> to api.anthropic.com. Only the topic or level you type is included, never your progress data.</li><li>The key is stored in this browser’s LocalStorage under its own entry, so it is <b>not</b> included in the exported backup. Anyone who can use this browser profile can read it, so do not enable this on a shared computer.</li><li>Each Generate click is one billed request. In your Anthropic console, set a low monthly spend limit for this key.</li><li>Generated items are checked by simple rules but are not verified by a person. They never change your estimated bands.</li></ul></details></div>
+
       <div class="card"><h2>Browser features</h2>
         <div class="table-wrap"><table class="t"><thead><tr><th>Feature</th><th>Status</th><th>Used for</th></tr></thead><tbody>
           ${feat(IM.audio.hasSpeech, 'Speech synthesis', 'Dictation, Listening practice audio, examiner voice, pronunciation models')}
@@ -138,6 +146,24 @@
         IM.store.update(x => { Object.assign(x.settings, v); x.settings.voiceURI = voice.value; x.settings.theme = theme.value; });
         IM.applyTheme();
         U.toast('Settings saved.', 'good');
+      } else if (act === 'aisave') {
+        const k = U.$('#aikey', root).value.trim();
+        if (k && !/^sk-ant-[A-Za-z0-9_\-]{20,}$/.test(k)) { U.$('#aimsg', root).innerHTML = '<span style="color:var(--bad)">That does not look like a Claude API key (it should start with sk-ant-).</span>'; return; }
+        if (k) IM.ai.setKey(k);
+        IM.store.update(x => { x.settings.ai = { enabled: U.$('#aion', root).checked, model: U.$('#aimodel', root).value }; });
+        U.$('#aikey', root).value = '';
+        U.$('#aimsg', root).innerHTML = '<span style="color:var(--good)">Saved.' + (IM.ai.getKey() ? '' : ' Add a key to use the generator.') + '</span>';
+      } else if (act === 'aitest') {
+        const msg = U.$('#aimsg', root);
+        if (!IM.ai.getKey()) { msg.innerHTML = '<span style="color:var(--bad)">Save a key first.</span>'; return; }
+        IM.store.update(x => { x.settings.ai = { enabled: U.$('#aion', root).checked, model: U.$('#aimodel', root).value }; });
+        msg.textContent = 'Testing…';
+        IM.ai.testConnection().then(t => { msg.innerHTML = '<span style="color:var(--good)">Connected. The model replied: ' + esc(t.slice(0, 40)) + '</span>'; }).catch(er => { msg.innerHTML = '<span style="color:var(--bad)">' + esc(er.message) + '</span>'; });
+      } else if (act === 'aiclear') {
+        IM.ai.setKey('');
+        IM.store.update(x => { x.settings.ai.enabled = false; });
+        U.$('#aion', root).checked = false;
+        U.$('#aimsg', root).innerHTML = '<span style="color:var(--good)">The saved key was removed and the generator was switched off.</span>';
       } else if (act === 'testvoice') {
         const sel = U.$('#voice', root).value, acc = U.$('#accent', root).value;
         if (!IM.audio.hasSpeech) { U.toast('Speech playback is not available in this browser.', 'warn'); return; }
@@ -154,6 +180,7 @@
         const w = U.$('#resetword', root).value.trim();
         if (w !== 'RESET') { U.toast('Type RESET exactly to confirm.', 'warn'); return; }
         IM.store.reset();
+        IM.ai.setKey('');
         U.toast('All data deleted.', 'good');
         location.hash = '#/onboarding';
         IM.route();

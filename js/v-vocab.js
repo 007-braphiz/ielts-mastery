@@ -43,7 +43,7 @@
         <dt>Typical mistake</dt><dd>${esc(e.mistake)}</dd>
         <dt>Formality</dt><dd>${esc(e.register)}</dd>
         <dt>IELTS use</dt><dd>${esc(e.ielts)}</dd>
-        <dt>Level and topic</dt><dd>Level ${e.level} · ${esc(e.category)}</dd>
+        <dt>Level and topic</dt><dd>Level ${e.level} · ${esc(e.category)}${e.ai ? ' <span class="badge warn">AI-generated: check the pronunciation guide in a dictionary</span>' : ''}</dd>
         <dt>Mastery</dt><dd>${statusBadge(status)} ${it ? `<span class="small muted">${it.attempts} attempt(s), ${it.correct} correct, box ${it.box}/${IM.data.scoring.srs.intervalsDays.length - 1}, next review ${it.due ? U.fmtDate(it.due) : '—'}; ${it.days.length} day(s), ${it.contexts.length} exercise type(s)</span>` : '<span class="small muted">Not practised yet</span>'}</dd>
       </dl>${opts.after || ''}</div>`;
   }

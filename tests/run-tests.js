@@ -11,7 +11,7 @@ const sandbox = {
   console,
   setTimeout, clearTimeout, setInterval, clearInterval,
   localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
-  navigator: {},
+  navigator: {}, AbortController,
   document: { getElementById: () => null }
 };
 sandbox.window = sandbox;
@@ -24,12 +24,13 @@ function load(rel) {
 
 const files = [
   'data/scoring.js', 'data/vocabulary.js', 'data/grammar.js', 'data/dictation.js', 'data/spelling100.js', 'data/listening.js', 'data/reading.js', 'data/writing.js', 'data/speaking.js',
-  'js/core.js', 'js/diff.js', 'js/srs.js', 'js/qengine.js', 'js/analytics.js', 'js/tutor.js'
+  'js/core.js', 'js/diff.js', 'js/srs.js', 'js/qengine.js', 'js/analytics.js', 'js/tutor.js', 'js/ai.js'
 ];
 files.forEach(f => { if (fs.existsSync(path.join(root, f))) load(f); });
 
 const IM = sandbox.IM;
 let passed = 0, failed = 0;
+const pending = [];
 function test(name, fn) {
   try { fn(); passed++; console.log('  ok   ' + name); } catch (e) { failed++; console.log('  FAIL ' + name + '\n       ' + e.message); }
 }
@@ -298,5 +299,63 @@ if (IM.tutor) {
   });
 }
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+if (IM.ai) {
+  console.log('AI generator (offline: validators and mocked API)');
+  const goodPassage = 'Urban beekeeping has grown in many cities. Hives are placed on rooftops where flowers are plentiful. Some keepers report that city honey tastes different from rural honey. Local councils often ask beekeepers to register their hives. Beginners usually attend a short course before buying equipment. Weather affects how much honey a hive produces each season. Many enthusiasts also enjoy teaching children about pollination. The hobby requires regular inspections during the warmer months. Neighbours sometimes worry about stings, so keepers explain how calm bees behave. Overall the practice combines environmental interest with a rewarding pastime for many people who live in busy places.';
+  const draft = { title: 'Bees in the city', paragraphs: [goodPassage, goodPassage.replace(/Urban/g, 'City'), goodPassage.replace(/Hives/g, 'Colonies')],
+    tfng: [{ statement: 'Hives are often placed on roofs.', answer: 'TRUE', evidence: 'Hives are placed on rooftops where flowers are plentiful', explanation: 'x' }, { statement: 'Bad evidence', answer: 'FALSE', evidence: 'this quote is not in the text', explanation: 'x' }, { statement: 'Councils pay beekeepers.', answer: 'NOT GIVEN', evidence: '', explanation: 'x' }],
+    mcq: [{ question: 'What do councils ask?', options: ['to register hives', 'to pay tax', 'to move hives', 'to stop'], answer: 'A', evidence: 'Local councils often ask beekeepers to register their hives', explanation: 'x' }, { question: 'Dup options', options: ['a', 'a', 'b', 'c'], answer: 'B', evidence: 'Hives are placed on rooftops', explanation: 'x' }],
+    completion: [{ before: 'Beginners usually attend a short', after: 'before buying equipment.', answer: 'course', evidence: 'attend a short course', explanation: 'x' }, { before: 'Answer leaks course here', after: 'course', answer: 'course', evidence: 'x', explanation: 'x' }, { before: 'The weather', after: 'honey.', answer: 'not in the passage at all really', evidence: 'x', explanation: 'x' }] };
+  test('reading validator keeps valid items and drops invalid ones', () => {
+    const o = { topic: 'bees', level: 'typical', style: 'academic' };
+    const bigDraft = Object.assign({}, draft, { tfng: draft.tfng.concat(draft.tfng, draft.tfng), completion: draft.completion });
+    const set = IM.ai.validateReading(bigDraft, o);
+    ok(set.dropped >= 4, 'dropped ' + set.dropped);
+    const numbers = set.groups.flatMap(g => g.items.map(i => i.n));
+    eq(numbers, numbers.map((_, i) => i + 1));
+    set.groups.filter(g => g.type === 'completion').forEach(g => g.items.forEach(i => ok(g.template.includes('[[' + i.n + ']]'))));
+    const m = IM.qengine.markTest(set.groups, {});
+    eq(m.raw, 0);
+  });
+  test('reading validator rejects sets with too few usable questions', () => {
+    let threw = false;
+    try { IM.ai.validateReading({ title: 't', paragraphs: draft.paragraphs, tfng: [], mcq: [], completion: [] }, { topic: 'x' }); } catch (e) { threw = true; }
+    ok(threw);
+  });
+  test('vocabulary validator enforces the headword in the example and skips duplicates', () => {
+    const base = { ipa: '/x/', respelling: 'x', definition: 'a clear learner definition', collocations: ['one two', 'three four'], synonyms: [], antonyms: [], family: [], pattern: 'p', mistake: 'm', register: 'formal', ielts: 'i', pos: 'n' };
+    const d = { words: [Object.assign({ word: 'resilient', example: 'The community stayed resilient after the storm.' }, base), Object.assign({ word: 'brittle', example: 'This sentence lacks the target.' }, base), Object.assign({ word: 'important', example: 'It is important to rest.' }, base), Object.assign({}, base, { word: 'prudent', example: 'A prudent saver plans ahead.', collocations: ['only one'] })] };
+    const v = IM.ai.validateVocab(d, { level: 4, category: 'Society', count: 4 }, new Set(IM.data.vocabulary.entries.map(e => e.word.toLowerCase())));
+    eq(v.entries.map(e => e.word), ['resilient']);
+    eq(v.dropped, 3);
+  });
+  test('JSON replies in code fences are parsed', () => { eq(IM.ai.parseJsonText('```json\n{"a":1}\n```').a, 1); eq(IM.ai.parseJsonText('Here you go: {"a":2}').a, 2); });
+  test('the API key is kept out of the exported data', () => {
+    IM.store.load(); IM.ai.setKey('sk-ant-test-key-0000000000000000');
+    ok(!IM.store.exportJSON().includes('sk-ant-test-key'), 'key leaked into export');
+    IM.ai.setKey('');
+  });
+  pending.push((async () => {
+    const calls = [];
+    sandbox.fetch = async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, json: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{"ok":true}' }], usage: { input_tokens: 5, output_tokens: 3 } }) }; };
+    IM.store.load(); IM.ai.setKey('sk-ant-test-key-0000000000000000');
+    const r = await IM.ai.call({ prompt: 'hi', schema: { type: 'object', additionalProperties: false, required: ['ok'], properties: { ok: { type: 'boolean' } } } });
+    const b = JSON.parse(calls[0].init.body), h = calls[0].init.headers;
+    test('call() sends the documented request shape (mocked fetch)', () => {
+      eq(calls[0].url, 'https://api.anthropic.com/v1/messages');
+      eq(h['anthropic-version'], '2023-06-01'); eq(h['x-api-key'].startsWith('sk-ant-'), true); eq(h['anthropic-dangerous-direct-browser-access'], 'true');
+      eq(b.model, 'claude-opus-5-5'); eq(b.output_config.format.type, 'json_schema'); eq(r.data.ok, true);
+    });
+    sandbox.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'invalid x-api-key' } }) });
+    let msg = '';
+    try { await IM.ai.call({ prompt: 'hi', schema: { type: 'object' } }); } catch (e) { msg = e.message; }
+    test('a rejected key gives a clear message', () => ok(/key was rejected/.test(msg), msg));
+    sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ stop_reason: 'refusal', content: [] }) });
+    msg = '';
+    try { await IM.ai.call({ prompt: 'hi', schema: { type: 'object' } }); } catch (e) { msg = e.message; }
+    test('a refusal is reported', () => ok(/declined/.test(msg), msg));
+    IM.ai.setKey('');
+  })());
+}
+
+Promise.all(pending).then(() => { console.log('\n' + passed + ' passed, ' + failed + ' failed'); process.exit(failed ? 1 : 0); });
