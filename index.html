@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IELTS Band 8 Mastery</title>
+  <meta name="description" content="A free, private IELTS preparation and English learning web application: exam simulations, audio-first dictation, vocabulary mastery, Writing and Speaking coaches.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#view">Skip to main content</a>
+  <header class="topbar">
+    <button id="nav-toggle" class="icon-btn nav-toggle" aria-label="Open menu" aria-controls="nav" aria-expanded="false">☰</button>
+    <a class="brand" href="#/dashboard"><span class="brand-mark" aria-hidden="true">8</span><span>IELTS Band 8 Mastery</span></a>
+    <span id="streak" class="streak" aria-live="polite"></span>
+  </header>
+  <div class="layout">
+    <nav id="nav" class="nav" aria-label="Main navigation"></nav>
+    <main id="main">
+      <div id="banners"></div>
+      <div id="view"></div>
+      <footer class="foot">
+        <p>Practice tool only. Estimated scores are not official IELTS results and do not guarantee any examination outcome. Your learning data stays in this browser (LocalStorage) and is never sent to a server.</p>
+      </footer>
+    </main>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- Learning content (separate from logic) -->
+  <script src="data/scoring.js"></script>
+  <script src="data/vocabulary.js"></script>
+  <script src="data/grammar.js"></script>
+  <script src="data/dictation.js"></script>
+  <script src="data/listening.js"></script>
+  <script src="data/reading.js"></script>
+  <script src="data/writing.js"></script>
+  <script src="data/speaking.js"></script>
+  <!-- Core logic -->
+  <script src="js/core.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/diff.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/qengine.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/tutor.js"></script>
+  <script src="js/charts.js"></script>
+  <!-- Views -->
+  <script src="js/v-dashboard.js"></script>
+  <script src="js/v-settings.js"></script>
+  <script src="js/v-diagnostic.js"></script>
+  <script src="js/v-vocab.js"></script>
+  <script src="js/v-dictation.js"></script>
+  <script src="js/v-english.js"></script>
+  <script src="js/v-exam.js"></script>
+  <script src="js/v-writing.js"></script>
+  <script src="js/v-speaking.js"></script>
+  <script src="js/v-plan.js"></script>
+  <script src="js/v-analytics.js"></script>
+  <script src="app.js"></script>
+  <noscript><p style="padding:1rem">This application needs JavaScript to run.</p></noscript>
+</body>
+</html>
